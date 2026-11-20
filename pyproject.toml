@@ -1,0 +1,32 @@
+[project]
+name = "cybershield"
+version = "0.1.0"
+description = "LAN-based cybersecurity monitoring, ML and AI-assisted threat investigation (BRR Phase 1)"
+readme = "README.md"
+authors = [
+    { name = "Abdullah-AboOun", email = "abdullah.h.pro@gmail.com" }
+]
+requires-python = ">=3.15"
+dependencies = [
+    "fastapi>=0.165.0",
+    "joblib>=1.6.0",
+    "pandas>=3.1.1",
+    "pydantic>=2.14.4",
+    "scikit-learn>=1.9.1",
+    "streamlit>=1.67.0",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+cybershield = "cybershield:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "jupyter>=1.1.1",
+    "matplotlib>=3.11.2",
+    "pytest>=9.2.0",
+]

@@ -1,0 +1,29 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Datasets: large, and UNSW-NB15 licence limits redistribution (spec §15). Keep small synthetic fixtures only.
+datasets/**
+!datasets/**/
+!datasets/zeek_logs/synthetic/**
+!datasets/**/README.md
+
+# Trained model artefacts (rebuilt by the training script)
+models/
+
+# Local database, secrets, notebook checkpoints
+*.db
+*.sqlite3
+.env
+# Exploration notebooks: personal scratch; findings move into src/ and docs/
+notebooks/
+.ipynb_checkpoints/
+.virtual_documents/
+.pytest_cache/
