@@ -22,8 +22,6 @@ models/
 *.db
 *.sqlite3
 .env
-# Exploration notebooks: personal scratch; findings move into src/ and docs/
-notebooks/
 .ipynb_checkpoints/
 .virtual_documents/
 .pytest_cache/

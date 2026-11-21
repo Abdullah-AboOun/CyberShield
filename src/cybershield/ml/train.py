@@ -11,15 +11,22 @@ from pathlib import Path
 import joblib
 import pandas as pd
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.pipeline import Pipeline
 
 from cybershield.ml.preprocessing import TEST_CSV, TRAIN_CSV, build_preprocessor, load_csv, split_xy
 
 MODELS_DIR = Path(__file__).resolve().parents[3] / "models"
-MODEL_VERSION = "rf-baseline-v1"
-SEED = 42  # fixed so every run builds the same forest (reproducibility, AI-03)
+SEED = 42  # fixed so every run builds the same model (reproducibility, AI-03)
+
+# Finalists picked on the validation split (notebooks/03_model_selection), then scored once on test.
+FINALISTS = {
+    "rf-baseline-v1": lambda: RandomForestClassifier(n_estimators=100, random_state=SEED, n_jobs=-1),
+    "hgb-v1": lambda: HistGradientBoostingClassifier(
+        learning_rate=0.1, max_leaf_nodes=63, max_iter=300, random_state=SEED
+    ),
+}
 
 
 def build_model(classifier=None) -> Pipeline:
@@ -47,25 +54,27 @@ def main() -> None:
 
     # Baseline: always predicts the most common training class. A real model must beat this.
     dummy = build_model(DummyClassifier(strategy="most_frequent")).fit(X_train, y_train)
-    model = build_model().fit(X_train, y_train)
-    pred = model.predict(X_test)
-
-    # Per attack family: share of each family's flows flagged as attack (for Normal, that is the FPR).
-    per_family = (pd.Series(pred, index=test.index) == 1).groupby(test["attack_cat"]).mean()
-
-    report = {
-        "model_version": MODEL_VERSION,
-        "params": {"n_estimators": 100, "random_state": SEED},
-        "train_rows": len(X_train),
-        "test_rows": len(X_test),
-        "baseline_most_frequent": evaluate(y_test, dummy.predict(X_test)),
-        "random_forest": evaluate(y_test, pred),
-        "flagged_as_attack_by_family": per_family.round(4).to_dict(),
-    }
+    baseline = evaluate(y_test, dummy.predict(X_test))
     MODELS_DIR.mkdir(exist_ok=True)
-    joblib.dump(model, MODELS_DIR / f"{MODEL_VERSION}.joblib")
-    (MODELS_DIR / f"{MODEL_VERSION}.metrics.json").write_text(json.dumps(report, indent=2))
-    print(json.dumps(report, indent=2))
+
+    for version, make_classifier in FINALISTS.items():
+        classifier = make_classifier()
+        model = build_model(classifier).fit(X_train, y_train)
+        pred = model.predict(X_test)
+        # Per attack family: share of each family's flows flagged as attack (for Normal, that is the FPR).
+        per_family = (pd.Series(pred, index=test.index) == 1).groupby(test["attack_cat"]).mean()
+        report = {
+            "model_version": version,
+            "params": classifier.get_params(),
+            "train_rows": len(X_train),
+            "test_rows": len(X_test),
+            "baseline_most_frequent": baseline,
+            "test": evaluate(y_test, pred),
+            "flagged_as_attack_by_family": per_family.round(4).to_dict(),
+        }
+        joblib.dump(model, MODELS_DIR / f"{version}.joblib")
+        (MODELS_DIR / f"{version}.metrics.json").write_text(json.dumps(report, indent=2, default=str))
+        print(json.dumps({k: report[k] for k in ("model_version", "test", "flagged_as_attack_by_family")}, indent=2))
 
 
 if __name__ == "__main__":
