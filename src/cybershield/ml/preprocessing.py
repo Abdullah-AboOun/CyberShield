@@ -28,6 +28,10 @@ def load_csv(path: Path) -> pd.DataFrame:
 
 
 def split_xy(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+    # No imputer by design: filling gaps would fabricate features (spec FR-13), so refuse them.
+    empty = df.columns[df.isna().any()].tolist()
+    if empty:
+        raise ValueError(f"empty values in columns {empty}; fix the data, do not impute")
     return df.drop(columns=NOT_FEATURES), df[TARGET]
 
 

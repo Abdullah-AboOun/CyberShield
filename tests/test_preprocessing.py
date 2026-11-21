@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from cybershield.ml.preprocessing import NOT_FEATURES, build_preprocessor, split_xy
 
@@ -21,6 +22,13 @@ def test_split_xy_removes_id_and_answers():
     X, y = split_xy(make_rows(["tcp", "udp"]))
     assert not set(NOT_FEATURES) & set(X.columns)
     assert y.tolist() == [0, 0]
+
+
+def test_split_xy_refuses_empty_values():
+    df = make_rows(["tcp", "udp"])
+    df.loc[0, "sbytes"] = None
+    with pytest.raises(ValueError, match="sbytes"):
+        split_xy(df)
 
 
 def test_encoder_learns_from_train_only_and_survives_unseen_categories():
