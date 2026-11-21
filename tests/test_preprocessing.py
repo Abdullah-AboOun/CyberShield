@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from cybershield.ml.preprocessing import NOT_FEATURES, build_preprocessor, split_xy
+from cybershield.ml.preprocessing import NOT_FEATURES, build_preprocessor, split_xy, validation_split
 
 
 def make_rows(protos: list[str]) -> pd.DataFrame:
@@ -42,3 +42,14 @@ def test_encoder_learns_from_train_only_and_survives_unseen_categories():
     assert {"proto_tcp", "proto_udp", "proto_infrequent_sklearn"} <= set(out.columns)
     assert out.loc[1, "proto_infrequent_sklearn"] == 1
     assert out.select_dtypes("number").shape == out.shape  # everything is numeric now
+
+
+def test_validation_split_never_puts_copies_on_both_sides():
+    # 40 distinct flows, each repeated 3 times (like the duplicate-heavy UNSW file)
+    X = pd.DataFrame({"sbytes": list(range(40)) * 3, "proto": ["tcp"] * 120})
+    y = pd.Series([i % 2 for i in range(40)] * 3)
+    X_fit, X_val, y_fit, y_val = validation_split(X, y)
+
+    assert set(X_fit.sbytes).isdisjoint(set(X_val.sbytes))
+    assert 0.1 < len(X_val) / len(X) < 0.3
+    assert y_val.nunique() == 2  # both classes present

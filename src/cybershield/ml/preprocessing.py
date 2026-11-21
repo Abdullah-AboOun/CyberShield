@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.preprocessing import OneHotEncoder
 
 DATA_DIR = Path(__file__).resolve().parents[3] / "datasets" / "unsw_nb15"
@@ -34,7 +35,20 @@ def split_xy(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
     return df.drop(columns=NOT_FEATURES), df[TARGET]
 
 
-def build_preprocessor(min_frequency: int = 100) -> ColumnTransformer:
+def validation_split(X: pd.DataFrame, y: pd.Series, seed: int = 42):
+    """~80/20 fit/validation split where identical feature rows stay on the same side.
+
+    The training file is ~39% exact duplicates; a plain random split put copies of
+    training rows into validation (46.6% of it), which inflated validation scores.
+    Grouping by the row's content prevents that; stratification keeps the class ratio.
+    """
+    groups = pd.util.hash_pandas_object(X, index=False)
+    splitter = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=seed)
+    fit_idx, val_idx = next(splitter.split(X, y, groups))
+    return X.iloc[fit_idx], X.iloc[val_idx], y.iloc[fit_idx], y.iloc[val_idx]
+
+
+def build_preprocessor(min_frequency: int = 100, categorical: list[str] = CATEGORICAL) -> ColumnTransformer:
     """Unfitted transformer: one-hot encode text columns, pass numeric columns through unchanged.
 
     Categories seen fewer than `min_frequency` times in training are grouped into one
@@ -46,7 +60,7 @@ def build_preprocessor(min_frequency: int = 100) -> ColumnTransformer:
         sparse_output=False,
     )
     return ColumnTransformer(
-        [("categorical", encoder, CATEGORICAL)],
+        [("categorical", encoder, categorical)],
         remainder="passthrough",
         verbose_feature_names_out=False,
     ).set_output(transform="pandas")
