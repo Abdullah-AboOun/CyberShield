@@ -24,7 +24,8 @@ SEED = 42  # fixed so every run builds the same forest (reproducibility, AI-03)
 
 def build_model(classifier=None) -> Pipeline:
     """Preprocessor + classifier in one object, so fit() always learns both from train data only."""
-    classifier = classifier or RandomForestClassifier(n_estimators=100, random_state=SEED, n_jobs=-1)
+    if classifier is None:  # not `or`: unfitted forests raise on truthiness (len() needs fitted trees)
+        classifier = RandomForestClassifier(n_estimators=100, random_state=SEED, n_jobs=-1)
     return Pipeline([("preprocess", build_preprocessor()), ("classifier", classifier)])
 
 

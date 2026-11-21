@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 
 from cybershield.ml.train import build_model, evaluate
 
@@ -18,3 +19,5 @@ def test_pipeline_learns_an_obvious_pattern():
     })
     y = pd.Series([0] * 10 + [1] * 10)
     assert (build_model().fit(X, y).predict(X) == y).all()
+    # passing an unfitted forest must work too (regression: `classifier or ...` crashed)
+    assert (build_model(RandomForestClassifier(n_estimators=5)).fit(X, y).predict(X) == y).all()
