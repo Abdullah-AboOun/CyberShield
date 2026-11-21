@@ -1,35 +1,39 @@
 # BRR CyberShield AI — Phase 1
 
-LAN-based cybersecurity monitoring with Zeek log ingestion, rule-based detection,
-an ML classifier trained on UNSW-NB15, and a local AI assistant.
+LAN-based cybersecurity monitoring combining Zeek log ingestion, rule-based detection, a UNSW-NB15 ML classifier, and a local AI assistant.
 
-## Setup
+## Quick Start
 
 1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
-2. `uv sync` (installs Python and all dependencies into `.venv`).
-3. Download the UNSW-NB15 training/testing CSVs into `datasets/unsw_nb15/` (see [datasets/README.md](datasets/README.md)).
+2. Install Python and dependencies:
+   ```sh
+   uv sync
+   ```
+3. Download the UNSW-NB15 CSVs into `datasets/unsw_nb15/` (see [datasets/README.md](datasets/README.md)).
 
-## Run
+## Common Commands
 
 ```sh
-uv run pytest                          # tests
-uv run python -m cybershield.ml.train  # train + evaluate models -> models/
-uv run jupyter lab                     # notebooks/
+uv run pytest                          # Run test suite
+uv run python -m cybershield.ml.train  # Train & evaluate models -> models/
+uv run jupyter lab                     # Open notebooks/
 ```
 
-## Layout
+## Project Layout
 
-- `src/cybershield/` — application packages (`ml/` is the model pipeline).
-- `notebooks/` — data exploration and model selection (01 → 03); `notebooks/samar/` — Samar's dataset inspection.
-- `tests/` — pytest suite.
+| Path | Description |
+|---|---|
+| `src/cybershield/` | Core application packages (`ml/` contains the model pipeline) |
+| `notebooks/` | Data exploration & model selection (`01` → `03`); `samar/` for dataset inspection |
+| `tests/` | `pytest` test suite |
+| `datasets/` | Local dataset instructions and data directory |
 
-## Current ML results (UNSW-NB15 official test split)
+## ML Baseline (UNSW-NB15 Test Split)
 
-| Model | F1 | Recall | False-positive rate | Size |
-|---|---|---|---|---|
+| Model | F1 | Recall | False-Positive Rate | Size |
+|---|---:|---:|---:|---:|
 | Random Forest (baseline) | 0.894 | 98.6% | 26.8% | 111 MB |
 | HistGradientBoosting | 0.894 | 98.1% | 26.3% | 1.5 MB |
 
-False-positive rate is ~7% on a validation split but ~26% on test (distribution shift).
-The models rely heavily on TTL features, which Zeek `conn.log` does not provide.
-These scores are not evidence of performance on Zeek or real network traffic.
+> [!NOTE]
+> False-positive rate jumps from ~7% on validation to ~26% on the official test split due to distribution shift. Both models also lean heavily on TTL features that Zeek `conn.log` does not provide, so these scores do not reflect live Zeek performance.
