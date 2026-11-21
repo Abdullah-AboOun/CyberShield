@@ -15,7 +15,15 @@ from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassif
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.pipeline import Pipeline
 
-from cybershield.ml.preprocessing import TEST_CSV, TRAIN_CSV, build_preprocessor, load_csv, split_xy
+from cybershield.ml.preprocessing import (
+    CATEGORICAL,
+    TEST_CSV,
+    TRAIN_CSV,
+    ZEEK_WINDOWED_FEATURES,
+    build_preprocessor,
+    load_csv,
+    split_xy,
+)
 
 MODELS_DIR = Path(__file__).resolve().parents[3] / "models"
 SEED = 42  # fixed so every run builds the same model (reproducibility, AI-03)
@@ -28,12 +36,25 @@ FINALISTS = {
     ),
 }
 
+# Candidate specs: (classifier factory, feature list or None for all, decision threshold).
+# hgb-zeek-v1 uses the 21 Zeek-computable features and threshold 0.68 chosen on validation (notebook 06).
+MODEL_SPECS = {
+    "rf-baseline-v1": (FINALISTS["rf-baseline-v1"], None, 0.50),
+    "hgb-v1": (FINALISTS["hgb-v1"], None, 0.50),
+    "hgb-zeek-v1": (FINALISTS["hgb-v1"], ZEEK_WINDOWED_FEATURES, 0.68),
+}
 
-def build_model(classifier=None) -> Pipeline:
+
+def build_model(classifier=None, categorical: list[str] = CATEGORICAL) -> Pipeline:
     """Preprocessor + classifier in one object, so fit() always learns both from train data only."""
     if classifier is None:  # not `or`: unfitted forests raise on truthiness (len() needs fitted trees)
         classifier = RandomForestClassifier(n_estimators=100, random_state=SEED, n_jobs=-1)
-    return Pipeline([("preprocess", build_preprocessor()), ("classifier", classifier)])
+    return Pipeline([("preprocess", build_preprocessor(categorical=categorical)), ("classifier", classifier)])
+
+
+def predict_with_threshold(model: Pipeline, X: pd.DataFrame, threshold: float = 0.50):
+    """Predict binary labels using P(attack) >= threshold."""
+    return (model.predict_proba(X)[:, 1] >= threshold).astype(int)
 
 
 def evaluate(y_true: pd.Series, y_pred) -> dict:
@@ -57,14 +78,19 @@ def main() -> None:
     baseline = evaluate(y_test, dummy.predict(X_test))
     MODELS_DIR.mkdir(exist_ok=True)
 
-    for version, make_classifier in FINALISTS.items():
+    for version, (make_classifier, features, threshold) in MODEL_SPECS.items():
+        cols = features if features is not None else list(X_train.columns)
+        categorical = [c for c in CATEGORICAL if c in cols]
         classifier = make_classifier()
-        model = build_model(classifier).fit(X_train, y_train)
-        pred = model.predict(X_test)
+        model = build_model(classifier, categorical=categorical).fit(X_train[cols], y_train)
+        pred = predict_with_threshold(model, X_test[cols], threshold)
         # Per attack family: share of each family's flows flagged as attack (for Normal, that is the FPR).
         per_family = (pd.Series(pred, index=test.index) == 1).groupby(test["attack_cat"]).mean()
         report = {
             "model_version": version,
+            "features": cols,
+            "n_features": len(cols),
+            "threshold": threshold,
             "params": classifier.get_params(),
             "train_rows": len(X_train),
             "test_rows": len(X_test),
@@ -74,7 +100,15 @@ def main() -> None:
         }
         joblib.dump(model, MODELS_DIR / f"{version}.joblib")
         (MODELS_DIR / f"{version}.metrics.json").write_text(json.dumps(report, indent=2, default=str))
-        print(json.dumps({k: report[k] for k in ("model_version", "test", "flagged_as_attack_by_family")}, indent=2))
+        print(
+            json.dumps(
+                {
+                    k: report[k]
+                    for k in ("model_version", "n_features", "threshold", "test", "flagged_as_attack_by_family")
+                },
+                indent=2,
+            )
+        )
 
 
 if __name__ == "__main__":

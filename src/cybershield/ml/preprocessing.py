@@ -22,6 +22,15 @@ TARGET = "label"
 NOT_FEATURES = ["id", "attack_cat", TARGET]
 CATEGORICAL = ["proto", "service", "state"]
 
+# 21 UNSW-NB15 features computable from Zeek conn.log (9 core + 5 per-flow + 7 sliding-window counts).
+ZEEK_WINDOWED_FEATURES = [
+    "dur", "proto", "service", "state",
+    "spkts", "dpkts", "sbytes", "dbytes",
+    "rate", "sload", "dload", "smean", "dmean", "is_sm_ips_ports",
+    "ct_srv_src", "ct_dst_ltm", "ct_src_dport_ltm", "ct_dst_sport_ltm",
+    "ct_dst_src_ltm", "ct_src_ltm", "ct_srv_dst",
+]
+
 
 def load_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path)  # pandas strips the files' leading BOM itself

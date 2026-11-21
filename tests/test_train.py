@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
-from cybershield.ml.train import build_model, evaluate
+from cybershield.ml.train import build_model, evaluate, predict_with_threshold
 
 
 def test_evaluate_counts_and_rates():
@@ -18,6 +18,8 @@ def test_pipeline_learns_an_obvious_pattern():
         "sbytes": [10] * 10 + [9000] * 10,
     })
     y = pd.Series([0] * 10 + [1] * 10)
-    assert (build_model().fit(X, y).predict(X) == y).all()
+    model = build_model().fit(X, y)
+    assert (model.predict(X) == y).all()
+    assert (predict_with_threshold(model, X, threshold=0.68) == y).all()
     # passing an unfitted forest must work too (regression: `classifier or ...` crashed)
     assert (build_model(RandomForestClassifier(n_estimators=5)).fit(X, y).predict(X) == y).all()
