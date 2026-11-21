@@ -20,7 +20,7 @@ uv run jupyter lab                     # notebooks/
 ## Layout
 
 - `src/cybershield/` — application packages (`ml/` is the model pipeline).
-- `notebooks/` — data exploration and model selection (01 → 03).
+- `notebooks/` — data exploration and model selection (01 → 03); `notebooks/samar/` — Samar's dataset inspection.
 - `tests/` — pytest suite.
 
 ## Current ML results (UNSW-NB15 official test split)
