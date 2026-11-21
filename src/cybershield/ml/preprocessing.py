@@ -23,8 +23,7 @@ CATEGORICAL = ["proto", "service", "state"]
 
 
 def load_csv(path: Path) -> pd.DataFrame:
-    # utf-8-sig strips the BOM at the start of the official files (else column 1 is "﻿id").
-    return pd.read_csv(path, encoding="utf-8-sig")
+    return pd.read_csv(path)  # pandas strips the files' leading BOM itself
 
 
 def split_xy(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
