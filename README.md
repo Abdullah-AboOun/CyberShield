@@ -58,6 +58,7 @@ Trained on `CIC-IDS2017` (5-day native Zeek, labeled via UNB official GT schedul
 | `CIC-IDS2017` (held-out grouped split) | 0.9999 | **0.9943** | 99.9% | **0.31%** |
 | `UWF-ZeekDataSum25-1` (unseen 2025) | 0.9999 | **0.8865** | 79.6% | **0.001%** |
 | `UWF-ZeekDataSum25-2` (unseen 2025) | 0.9998 | **0.9991** | 99.9% | **0.056%** |
+| `AIT-LDSv2` `russellmitchell` (unseen 2022 3rd network, zero-shot) | **0.9990** | **0.9850** | **97.0%** | **0.013%** |
 
 > [!TIP]
 > See [01_dataset_comparison.ipynb](notebooks/01_dataset_comparison.ipynb) for the full 7-dataset audit and why `UNSW-NB15` synthetic IXIA traffic is excluded from host-window training.

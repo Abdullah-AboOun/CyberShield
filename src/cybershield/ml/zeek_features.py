@@ -143,6 +143,18 @@ def load_unsw_zeek(data_dir: Path | None = None, with_features: bool = True) -> 
     return add_zeek_hybrid_features(df, group_col="source") if with_features else df
 
 
+def load_ait_zeek(data_dir: Path | None = None, with_features: bool = True) -> pd.DataFrame:
+    """Load AIT-LDSv2 russellmitchell Zeek-converted Parquet (deduped, labeled by attacker IPs)."""
+    base = data_dir or (DATASETS_DIR / "ait_zeek")
+    df = pd.read_parquet(base / "ait_russellmitchell_zeek.parquet")
+    df = df.drop_duplicates(subset=["ts", "src_ip", "src_port", "dst_ip", "dst_port", "proto"]).copy()
+    attacker_ips = {"10.9.0.10", "192.168.230.122", "172.19.131.174"}
+    df["label"] = df["src_ip"].isin(attacker_ips).astype(int)
+    df["attack_type"] = np.where(df["label"] == 1, "AIT-RedTeam", "BENIGN")
+    df["source"] = "ait_russellmitchell"
+    return add_zeek_hybrid_features(df, group_col="source") if with_features else df
+
+
 def load_ton_iot(data_dir: Path | None = None) -> pd.DataFrame:
     """Load TON_IoT network CSV with canonical Zeek column names (no timestamps available)."""
     base = data_dir or (DATASETS_DIR / "ton_iot")
