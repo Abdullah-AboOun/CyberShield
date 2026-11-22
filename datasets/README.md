@@ -1,6 +1,14 @@
 # Datasets (not committed)
 
-- `unsw_nb15/` — download `UNSW_NB15_training-set.csv` and `UNSW_NB15_testing-set.csv`
-  from https://research.unsw.edu.au/projects/unsw-nb15-dataset (cite the dataset papers).
-- `zeek_logs/<log_type>/` — public Zeek JSON/JSONL samples; record source, licence and SHA-256 in DATA_SOURCES.md.
-- `zeek_logs/synthetic/` — small hand-made fixtures, committed, clearly labelled synthetic.
+All dataset files under `datasets/` (except `zeek_logs/synthetic/` and `README.md`) are gitignored.
+
+## Comparison: Pros, Cons & Notes
+
+| Folder / Dataset | Role | Pros | Cons / Caveats | Notes |
+|---|---|---|---|---|
+| `cic2017_zeek/` (**CIC-IDS2017**, 5d Zeek) | **Primary training & test** | Real Zeek `conn.log` schema; **612k real benign TCP flows** (SSL/HTTP/SSH/FTP); timestamps (`ts`) for 60s windows; benign + 12 attack types mixed on the same LAN. | Single lab (attacker VM hit 1 victim IP → dropped `host_uniq_ips_60s`); 2017 traffic (less QUIC/HTTP3); Thursday Web Attacks mostly empty/failed flows. | 52 GB PCAPs → 48 MB Parquet via [colab_cic2017_pipeline.py](../notebooks/colab_scripts/colab_cic2017_pipeline.py); relabeled from UNB's official GT schedule. |
+| `uwf_zeek/` (**UWF-ZeekData24 / Fall24-2 / Sum25-1 / Sum25-2**) | **Co-training (`24`/`Fall24-2`) & unseen 2025 test (`Sum25-1/2`)** | Native Zeek Parquet from https://datasets.uwf.edu/data/; modern 2024–2025 captures; MITRE ATT&CK labels (Credential Access, Discovery, Recon, Defense Evasion, Lateral Movement, Exfiltration). | **Idle-lab benign traffic** (92–99% UDP DNS, **0-byte** benign TCP); benign and attack captured in separate weeks. | Drop `label_binary == "Duplicate"` multi-tactic rows. Do not train alone for a real LAN—combine balanced chunks with `CIC-IDS2017`. |
+| `ton_iot/` (**TON_IoT** Network CSV) | **Single-flow reference** | Native Zeek columns (`proto`, `service`, `conn_state`, bytes/pkts); real benign TCP + 9 attack types. | **No `ts` timestamps** in `train_test_network.csv` (cannot build 60s host windows); IoT sensor loop (`src_pkts == 120`); 56% duplicate flows. | Useful for single-flow cross-network sanity checks, not Hybrid 60s window training. |
+| `unsw_zeek/` (**UNSW-NB15**, 20 GB Zeek) | **Excluded (audit reference)** | Real Zeek conversion of 20 PCAPs (393k flows, 8 attack categories) labeled via `Stime`/`Ltime` GT. | **Synthetic 2015 IXIA Normal traffic is inverted:** 10 Normal IPs blast **134 conn/min & 58 ports/min** vs. **32 conn/min & 8 ports/min** for attacks. | Generated via [colab_unsw_zeek_pipeline.py](../notebooks/colab_scripts/colab_unsw_zeek_pipeline.py). Do not train on IXIA host windows; reminder to allowlist NAT gateways/proxies on a real LAN. |
+| `unsw_nb15/` (**UNSW-NB15** legacy CSVs) | **Legacy baseline only** | Small, easy to load (`UNSW_NB15_training-set.csv`, `testing-set.csv`). | Argus/Bro hybrid (not Zeek `conn_state`); relies on TTL shortcuts; missing `ts` and IPs. | Source: https://research.unsw.edu.au/projects/unsw-nb15-dataset. |
+| `zeek_logs/synthetic/` | **Unit-test fixtures** | Small, committed, fast for `pytest`. | Synthetic only—not for model training. | Keep clearly labelled synthetic. |

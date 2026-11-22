@@ -25,3 +25,5 @@ models/
 .ipynb_checkpoints/
 .virtual_documents/
 .pytest_cache/
+
+AGENTS.md
