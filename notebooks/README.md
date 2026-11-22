@@ -8,7 +8,7 @@ Only **2 clean, presentation-ready notebooks** live here at the top level. All e
 
 ## TL;DR of What Won (and Why)
 - **Production model:** `zeek-hybrid-m3-v1` (`HistGradientBoostingClassifier`, trained via `uv run python -m cybershield.ml.train_zeek`).
-- **Features (19):** 11 native Zeek `conn.log` fields + 3 flow ratios + 5 rolling 60-second per-host context features (no IPs, no ports, no TTL).
+- **Features (19):** 11 native Zeek `conn.log` fields + 3 flow ratios + 5 per-host 60-second window stats (`window_id = int(ts // 60)`, grouped by `(src_ip, window_id)`, then attached back to each flow row). Raw IPs, ports, and timestamps are never fed to the model.
 - **Training data:** `CIC-IDS2017` (5-day native Zeek, real benign TCP/SSL/HTTP/SSH) + balanced chunks of `UWF-ZeekData24` & `UWF-ZeekDataFall24-2`.
 - **Scores:** `0.994` F1 / `0.31%` FPR on held-out `CIC-IDS2017`; `0.887–0.999` F1 / `0.001%–0.056%` FPR on unseen 2025 `UWF-Sum25-1/2`; **`0.985` F1 / `0.013%` FPR zero-shot on unseen 2022 `AIT-LDSv2` (`russellmitchell`)**.
 
