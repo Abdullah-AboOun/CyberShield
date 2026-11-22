@@ -14,28 +14,28 @@ LAN-based cybersecurity monitoring combining Zeek log ingestion, rule-based dete
 ## Common Commands
 
 ```sh
-uv run pytest                          # Run test suite
-uv run python -m cybershield.ml.train  # Train & evaluate models -> models/
-uv run jupyter lab                     # Open notebooks/
+uv run pytest                               # Run test suite
+uv run python -m cybershield.ml.train_zeek  # Train & evaluate 19-feature Zeek Hybrid model -> models/
+uv run python -m cybershield.ml.train       # Legacy UNSW-NB15 baseline -> models/
+uv run jupyter lab                          # Open notebooks/
 ```
 
 ## Project Layout
 
 | Path | Description |
 |---|---|
-| `src/cybershield/` | Core application packages (`ml/` contains the model pipeline) |
-| `notebooks/` | Data exploration & model selection (`01` → `11`), Colab PCAP→Zeek scripts (`colab_scripts/`), and `samar/` |
+| `src/cybershield/` | Core application packages (`ml/zeek_features.py` & `ml/train_zeek.py` for Native Zeek Hybrid ML) |
+| `notebooks/` | 2 clean presentation notebooks (`01_dataset_comparison`, `02_zeek_hybrid_model`), `archive/`, `colab_scripts/`, and `samar/` |
 | `tests/` | `pytest` test suite |
-| `datasets/` | Local dataset instructions and data directory (gitignored) |
+| `datasets/` | Local dataset instructions, pros/cons comparison, and data directory (gitignored) |
 
-## Notebook Progression (`notebooks/`)
+## Notebooks ([notebooks/README.md](notebooks/README.md))
 
-| Notebooks | Focus | Key Outcome |
-|---|---|---|
-| `01` → `06` | `UNSW-NB15` baseline, threshold tuning, TTL removal & dedup | Exposed TTL/Argus mismatch vs. live Zeek `conn.log` |
-| `07` → `08` | Multi-dataset Zeek (`TON_IoT` + `UWF`) & pure 60s host windows | Proved multi-dataset gains; caught UWF idle-lab benign TCP (0 B) |
-| `09` → `10` | 5-day `CIC-IDS2017` Zeek conversion, Hybrid features & cross-network test | Selected **19-feature Hybrid `M3`** (removed `host_uniq_ips_60s` shortcut) |
-| `11` | Master comparison of all 7 local datasets + `UNSW-NB15` 20 GB Zeek audit | Documented UNSW IXIA normal-traffic inversion (134 vs. 32 conn/min) |
+| Notebook | Focus |
+|---|---|
+| [01_dataset_comparison.ipynb](notebooks/01_dataset_comparison.ipynb) | Side-by-side comparison of all 4 dataset families (`CIC-IDS2017`, `UWF`, `TON_IoT`, `UNSW-NB15`), sources, pros/cons & UNSW IXIA inversion audit |
+| [02_zeek_hybrid_model.ipynb](notebooks/02_zeek_hybrid_model.ipynb) | Pure per-flow vs. 19-feature Hybrid `M3`, per-attack recall, and feature importance audit |
+| `notebooks/archive/` | Earlier chronological experiments (`01` → `08`: legacy UNSW-NB15 baseline, TTL audit, early UWF drafts) |
 
 ## ML Benchmarks
 
@@ -60,4 +60,4 @@ Trained on `CIC-IDS2017` (5-day native Zeek, labeled via UNB official GT schedul
 | `UWF-ZeekDataSum25-2` (unseen 2025) | 0.9998 | **0.9991** | 99.9% | **0.056%** |
 
 > [!TIP]
-> See [11_all_datasets_comparison.ipynb](notebooks/11_all_datasets_comparison.ipynb) for the full 7-dataset audit and why `UNSW-NB15` synthetic IXIA traffic is excluded from host-window training.
+> See [01_dataset_comparison.ipynb](notebooks/01_dataset_comparison.ipynb) for the full 7-dataset audit and why `UNSW-NB15` synthetic IXIA traffic is excluded from host-window training.

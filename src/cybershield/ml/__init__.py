@@ -1,1 +1,1 @@
-"""UNSW-NB15 preprocessing, Random Forest training/evaluation, Zeek feature mapping, scoring. [AI/ML]"""
+"""ML preprocessing, Native Zeek Hybrid training/scoring (`zeek_features`, `train_zeek`), and legacy UNSW baseline. [AI/ML]"""
