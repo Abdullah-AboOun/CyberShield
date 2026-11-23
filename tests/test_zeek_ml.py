@@ -3,8 +3,8 @@
 import numpy as np
 import pandas as pd
 
-from cybershield.ml.train_zeek import build_zeek_pipeline, evaluate_predictions, score_zeek_flows
-from cybershield.ml.zeek_features import ZEEK_HYBRID_FEATURES, add_zeek_hybrid_features
+from cybershield.ml.train_zeek import build_zeek_pipeline, evaluate_host_minutes, evaluate_predictions, score_zeek_flows
+from cybershield.ml.zeek_features import ZEEK_HYBRID_FEATURES, add_zeek_hybrid_features, relabel_cic2017
 
 
 def _sample_zeek_conn_log() -> pd.DataFrame:
@@ -70,3 +70,36 @@ def test_evaluate_predictions_metrics():
     assert res["roc_auc"] == 1.0
     assert res["f1"] == 1.0
     assert res["false_positive_rate"] == 0.0
+
+
+def _cic_ts(hh: int, mm: int) -> float:
+    """Epoch seconds for 2017-07-05 hh:mm local CIC time (UTC-3)."""
+    return 1499212800.0 + (hh + 3) * 3600 + mm * 60
+
+
+def test_relabel_cic2017_uses_schedule_ips_and_direction():
+    rows = pd.DataFrame(
+        [
+            # (day, ts, src, dst, old csv label)
+            ("wednesday", _cic_ts(10, 50), "172.16.0.1", "192.168.10.50", 1),  # DoS Hulk window
+            ("wednesday", _cic_ts(10, 50), "192.168.10.50", "172.16.0.1", 0),  # reply direction counts too
+            ("wednesday", _cic_ts(12, 0), "172.16.0.1", "192.168.10.50", 0),  # outside every window
+            ("thursday", _cic_ts(15, 10), "192.168.10.8", "192.168.10.5", 0),  # infiltration scan the CSV missed
+            ("thursday", _cic_ts(15, 10), "192.168.10.8", "192.168.10.3", 0),  # victim's normal DC traffic
+        ],
+        columns=["day", "ts", "src_ip", "dst_ip", "label"],
+    ).assign(attack_type="x")
+    out = relabel_cic2017(rows)
+    assert out["label"].tolist() == [1, 1, 0, 1, 0]
+    assert out["attack_type"].tolist() == ["DoS Hulk", "DoS Hulk", "BENIGN", "Infiltration - Portscan", "BENIGN"]
+    assert out["label_csv"].tolist() == [1, 0, 0, 0, 0]
+
+
+def test_evaluate_host_minutes_counts_each_host_minute_once():
+    # 3 flows of one attacking host-minute (only 1 flagged) + 2 benign host-minutes (1 false alarm)
+    df = pd.DataFrame({
+        "source": "s", "src_ip": ["a", "a", "a", "b", "c"], "window_id": [1, 1, 1, 1, 1],
+        "label": [1, 1, 1, 0, 0],
+    })
+    res = evaluate_host_minutes(df, np.array([0.9, 0.1, 0.1, 0.8, 0.1]))
+    assert res["confusion_matrix"] == {"tn": 1, "fp": 1, "fn": 0, "tp": 1}

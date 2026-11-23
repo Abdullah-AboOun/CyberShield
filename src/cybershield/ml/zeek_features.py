@@ -38,6 +38,36 @@ ZEEK_NUM_FEATURES = ZEEK_RAW_NUM_COLS + ZEEK_FLOW_RATIO_COLS + ZEEK_HOST_CTX_COL
 FAILED_CONN_STATES = frozenset({"S0", "REJ", "RSTO", "RSTR", "SH", "SHR", "RSTOS0", "RSTRH"})
 DEFAULT_WINDOW_SEC = 60
 
+# CIC-IDS2017 ground truth from UNB's published attack schedule (local time, UTC-3), windows widened a few
+# minutes to the observed flow times. Replaces the CICFlowMeter CSV labels, which marked e.g. the ~70k-flow
+# infiltration port scan from 192.168.10.8 as BENIGN (Engelen et al. 2021 document such errors).
+# (day, start "HH:MM", end "HH:MM" inclusive, attack_type, attacker IPs, victim IPs); traffic either way counts.
+_CIC_ATTACKER = {"172.16.0.1"}  # 205.174.165.73 as seen inside the LAN after the firewall NAT
+_CIC_C2 = {"205.174.165.73"}
+_CIC_WEB = {"192.168.10.50"}
+# Hosts 192.168.10.8 port-scanned after infiltration (all internal hosts except the DC .3, whose traffic is normal).
+_CIC_SCANNED = {f"192.168.10.{i}" for i in (5, 9, 12, 14, 15, 16, 17, 19, 25, 50, 51)}
+CIC_ATTACK_SCHEDULE = [
+    ("tuesday", "09:17", "10:30", "FTP-Patator", _CIC_ATTACKER, _CIC_WEB),
+    ("tuesday", "14:00", "15:15", "SSH-Patator", _CIC_ATTACKER, _CIC_WEB),
+    ("wednesday", "09:47", "10:11", "DoS slowloris", _CIC_ATTACKER, _CIC_WEB),
+    ("wednesday", "10:14", "10:36", "DoS Slowhttptest", _CIC_ATTACKER, _CIC_WEB),
+    ("wednesday", "10:43", "11:01", "DoS Hulk", _CIC_ATTACKER, _CIC_WEB),
+    ("wednesday", "11:10", "11:23", "DoS GoldenEye", _CIC_ATTACKER, _CIC_WEB),
+    ("wednesday", "15:11", "15:33", "Heartbleed", _CIC_ATTACKER, {"192.168.10.51"}),
+    ("thursday", "09:15", "10:01", "Web Attack - Brute Force", _CIC_ATTACKER, _CIC_WEB),
+    ("thursday", "10:15", "10:36", "Web Attack - XSS", _CIC_ATTACKER, _CIC_WEB),
+    ("thursday", "10:40", "10:43", "Web Attack - Sql Injection", _CIC_ATTACKER, _CIC_WEB),
+    ("thursday", "14:19", "15:46", "Infiltration", _CIC_C2, {"192.168.10.8", "192.168.10.25"}),
+    ("thursday", "14:33", "15:46", "Infiltration - Portscan", {"192.168.10.8"}, _CIC_SCANNED),
+    # ARES bots keep beaconing to the C&C after the 10:02-11:02 session, so the rest of the day counts too.
+    ("friday", "10:00", "23:59", "Bot", _CIC_C2, {f"192.168.10.{i}" for i in (5, 8, 9, 14, 15)}),
+    ("friday", "13:55", "15:25", "PortScan", _CIC_ATTACKER, _CIC_WEB),
+    ("friday", "15:56", "16:17", "DDoS", _CIC_ATTACKER, _CIC_WEB),
+]
+# AIT scenario config: attacker VPN address and the attacker's dnsteal DNS server.
+AIT_ATTACKER_IPS = {"10.9.0.10", "192.168.230.122"}
+
 # Maps raw Zeek JSON / UWF / TON_IoT column variants onto our canonical internal names.
 _COLUMN_ALIASES = {
     "id.orig_h": "src_ip",
@@ -107,11 +137,33 @@ def add_zeek_hybrid_features(
     return out
 
 
+def relabel_cic2017(df: pd.DataFrame) -> pd.DataFrame:
+    """Set `label`/`attack_type` from CIC_ATTACK_SCHEDULE; keep the old CSV labels as `label_csv`/`attack_type_csv`."""
+    out = df.rename(columns={"label": "label_csv", "attack_type": "attack_type_csv"})
+    # CIC was captured 3-7 July 2017 in New Brunswick (ADT, fixed UTC-3): minute of the local day.
+    minute = ((pd.to_numeric(out["ts"]) - 3 * 3600) % 86400) // 60
+    label = np.zeros(len(out), dtype=np.int64)
+    attack_type = np.full(len(out), "BENIGN", dtype=object)
+    for day, start, end, name, attackers, victims in CIC_ATTACK_SCHEDULE:
+        lo = int(start[:2]) * 60 + int(start[3:])
+        hi = int(end[:2]) * 60 + int(end[3:])
+        between = (out["src_ip"].isin(attackers) & out["dst_ip"].isin(victims)) | (
+            out["src_ip"].isin(victims) & out["dst_ip"].isin(attackers)
+        )
+        hit = ((out["day"] == day) & minute.between(lo, hi) & between).to_numpy()
+        label[hit] = 1
+        attack_type[hit] = name
+    out["label"] = label
+    out["attack_type"] = attack_type
+    return out
+
+
 def load_cic2017_zeek(data_dir: Path | None = None, with_features: bool = True) -> pd.DataFrame:
-    """Load the 5-day native Zeek CIC-IDS2017 Parquet files (labeled from UNB official GT)."""
+    """Load the 5-day native Zeek CIC-IDS2017 Parquet files, relabeled from UNB's attack schedule."""
     base = data_dir or (DATASETS_DIR / "cic2017_zeek")
     days = ["monday", "tuesday", "wednesday", "thursday", "friday"]
     df = pd.concat([pd.read_parquet(base / f"cic2017_{d}_zeek.parquet") for d in days], ignore_index=True)
+    df = relabel_cic2017(df)
     df["source"] = "cic_" + df["day"].astype(str)
     return add_zeek_hybrid_features(df, group_col="source") if with_features else df
 
@@ -144,13 +196,19 @@ def load_unsw_zeek(data_dir: Path | None = None, with_features: bool = True) -> 
 
 
 def load_ait_zeek(data_dir: Path | None = None, with_features: bool = True) -> pd.DataFrame:
-    """Load AIT-LDSv2 russellmitchell Zeek-converted Parquet (deduped, labeled by attacker IPs)."""
+    """Load AIT-LDSv2 russellmitchell Zeek-converted Parquet (deduped, labeled by attacker IPs).
+
+    The PCAPs were recorded on the attacker host during two attack steps, so this is a recall-only test:
+    the few benign rows are host noise (IPv6/mDNS/loopback), not real users.
+    """
     base = data_dir or (DATASETS_DIR / "ait_zeek")
     df = pd.read_parquet(base / "ait_russellmitchell_zeek.parquet")
     df = df.drop_duplicates(subset=["ts", "src_ip", "src_port", "dst_ip", "dst_port", "proto"]).copy()
-    attacker_ips = {"10.9.0.10", "192.168.230.122", "172.19.131.174"}
-    df["label"] = df["src_ip"].isin(attacker_ips).astype(int)
-    df["attack_type"] = np.where(df["label"] == 1, "AIT-RedTeam", "BENIGN")
+    # Either end: dnsteal exfiltration arrives as DNS *to* the attacker, so src-only labels called it benign.
+    is_attack = df["src_ip"].isin(AIT_ATTACKER_IPS) | df["dst_ip"].isin(AIT_ATTACKER_IPS)
+    df["label"] = is_attack.astype(int)
+    is_exfil = df["dst_ip"].isin(AIT_ATTACKER_IPS) & (pd.to_numeric(df["dst_port"], errors="coerce") == 53)
+    df["attack_type"] = np.select([is_exfil, is_attack], ["AIT-dnsteal exfil", "AIT-red team"], "BENIGN")
     df["source"] = "ait_russellmitchell"
     return add_zeek_hybrid_features(df, group_col="source") if with_features else df
 

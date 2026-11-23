@@ -2,6 +2,8 @@
 
 1. Installs Zeek on the Colab VM.
 2. Converts all 5 days of CIC-IDS2017 (Mon-Fri) PCAPs -> native Zeek conn.log -> labeled Parquet.
+   Labels come from the CICFlowMeter CSVs (5-tuple inner join), which contain known errors;
+   `cybershield.ml.zeek_features.load_cic2017_zeek()` replaces them with UNB's attack schedule.
 3. Compares Pure Row-by-Row (11 Zeek features) vs Hybrid (11 Zeek + 60s Host Context) across all 5 days.
 4. Saves the trained Hybrid model to /content/cic2017_zeek/hybrid_zeek_cic2017.joblib.
 """
