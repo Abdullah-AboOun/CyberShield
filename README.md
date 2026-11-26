@@ -24,7 +24,7 @@ uv run jupyter lab                          # Open notebooks/
 | Path | Description |
 |---|---|
 | `src/cybershield/ml/` | `zeek_features.py` (19 Hybrid features + dataset loaders), `train_zeek.py` (LODO eval, training & scoring), and legacy UNSW baseline (`preprocessing.py`, `train.py`) |
-| `notebooks/` | 2 clean presentation notebooks ([notebooks/README.md](notebooks/README.md)), `archive/`, `colab_scripts/`, and `samar/` |
+| `notebooks/` | 4 notebooks ([notebooks/README.md](notebooks/README.md)), `archive/`, `colab_scripts/`, and `samar/` |
 | `tests/` | `pytest` unit tests (`test_zeek_ml.py` + legacy tests) |
 | `datasets/` | Dataset comparison, sources, and local data directory (gitignored) |
 
@@ -32,9 +32,11 @@ uv run jupyter lab                          # Open notebooks/
 
 | Notebook | What it shows |
 |---|---|
-| [01_dataset_comparison.ipynb](notebooks/01_dataset_comparison.ipynb) | Side-by-side comparison of 5 datasets (`CIC-IDS2017`, `UWF`, `AIT-LDSv2`, `TON_IoT`, `UNSW-NB15`), label audit, and `zeek-hybrid-m3-v1` on every test set |
-| [02_zeek_hybrid_model.ipynb](notebooks/02_zeek_hybrid_model.ipynb) | Per-flow (14 feat) vs. Hybrid `M3` (19 feat) under leave-one-day-out, per-attack recall, feature importance & limitations |
-| `notebooks/archive/` | Earlier exploration (`01` → `08`: legacy UNSW-NB15 baseline, TTL audit, early UWF drafts — old labels/splits) |
+| [01_dataset_claims.ipynb](notebooks/01_dataset_claims.ipynb) | Tests the dataset evaluation report's data claims one by one (UNSW-NB15, UWF-ZeekData, CIC-IDS2017), each with a verdict |
+| [02_do_the_flaws_matter.ipynb](notebooks/02_do_the_flaws_matter.ipynb) | Four small experiments: TTL shortcut, duplicates, shortcuts in UNSW-NB15's Zeek logs, and whether a UNSW-trained model works on another network |
+| [03_cross_dataset_training.ipynb](notebooks/03_cross_dataset_training.ipynb) | Train on 4 datasets / test on the 5th and train on 3 / test on 2, per-flow vs. 60s-windowed features, and what closes the cross-network gap |
+| [04_new_network_test.ipynb](notebooks/04_new_network_test.ipynb) | Four training sets tested on unseen networks: per-flow vs. windowed, +1,000 local normal connections, capped vs. uncapped training |
+| `notebooks/archive/` | Earlier exploration (`01` → `10`), including the previous dataset-comparison and hybrid-model notebooks (`09`, `10`) |
 
 ## ML Findings & Honest Benchmarks (`zeek-hybrid-m3-v1`)
 

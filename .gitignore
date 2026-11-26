@@ -27,3 +27,7 @@ models/
 .pytest_cache/
 
 AGENTS.md
+
+docs/
+# Papers whose licence forbids redistribution (kept locally only; see docs/papers/README.md)
+docs/papers/restricted/

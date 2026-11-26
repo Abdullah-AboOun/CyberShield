@@ -1,19 +1,22 @@
-# CyberShield ML Notebooks — 60-Second Guide
+# CyberShield ML Notebooks
 
-Only **2 clean, presentation-ready notebooks** live here at the top level. All earlier exploration and dead ends are preserved in `archive/`.
+Notebooks 01 and 02 test the claims in the dataset evaluation report; 03 tests training across datasets. Earlier exploration is kept in `archive/`.
 
-## Start Here
-1. **[01_dataset_comparison.ipynb](01_dataset_comparison.ipynb)** — Compares 5 datasets (`CIC-IDS2017`, `UWF-ZeekData`, `AIT-LDSv2`, `TON_IoT`, `UNSW-NB15`), audits and fixes their labels, and scores the production model on every test set.
-2. **[02_zeek_hybrid_model.ipynb](02_zeek_hybrid_model.ipynb)** — Per-flow vs. **19-feature Native Zeek Hybrid model (`zeek-hybrid-m3-v1`)** under leave-one-day-out, recall per attack type, and what the model relies on.
+## Start here
+1. **[01_dataset_claims.ipynb](01_dataset_claims.ipynb)**: checks the report's data claims one at a time. Each section states the claim, runs one check, shows one small table or chart, and gives a verdict. No models.
+2. **[02_do_the_flaws_matter.ipynb](02_do_the_flaws_matter.ipynb)**: four small experiments on whether those flaws change what a model learns. Every experiment reports the same two numbers: attacks caught and false alarms.
+3. **[03_cross_dataset_training.ipynb](03_cross_dataset_training.ipynb)**: trains on some datasets and tests on unseen ones (train on 4 / test on 1, train on 3 / test on 2), with and without the 60-second window features, then tries ways to close the gap.
+4. **[04_new_network_test.ipynb](04_new_network_test.ipynb)**: four training sets (UNSW-NB15; CIC-IDS2017; CIC-IDS2017 + UNSW-NB15; CIC-IDS2017 + UWF-2024) tested on unseen networks: per-flow vs. windowed, +1,000 local normal connections, and capped vs. uncapped training.
 
-## TL;DR
-- **Production model:** `zeek-hybrid-m3-v1` (`HistGradientBoostingClassifier`, trained via `uv run python -m cybershield.ml.train_zeek`).
-- **Features (19):** 11 native Zeek `conn.log` fields + 3 flow ratios + 5 per-host 60-second window stats (`window_id = int(ts // 60)`, grouped by `(src_ip, window_id)`, then attached back to each flow row). Raw IPs, ports, and timestamps are never fed to the model.
-- **Training data:** all 5 `CIC-IDS2017` days (labels from UNB's attack schedule) + balanced chunks of `UWF-ZeekData24` & `UWF-ZeekDataFall24-2`.
-- **How it's scored:** CIC leave-one-day-out (attack types the model never saw), per host-minute and per attack type, plus unseen `UWF-Sum25-1/2` and `AIT-LDSv2` (recall-only). Numbers: [README](../README.md#ml-findings--honest-benchmarks-zeek-hybrid-m3-v1).
-- **Honest summary:** strong on attack types it trained on (DoS, DDoS, scans, FTP brute force, web brute force/XSS); weak on new ones (SSH-Patator, GoldenEye, Bot, SQLi, DNS exfiltration).
+## Data the notebooks need (in `datasets/`, gitignored)
+| Folder | Source |
+|---|---|
+| `unsw_nb15/` | Official UNSW-NB15 training and testing CSVs |
+| `unsw_official/` | UNSW-NB15's own Zeek logs, labelled; built by `colab_scripts/colab_unsw_official_zeek.py` from the official download |
+| `uwf_zeek/` | UWF-ZeekData releases from datasets.uwf.edu |
+| `cic2017_zeek/` | CIC-IDS2017 converted to Zeek from a HuggingFace mirror (the official download needs registration) |
 
-## Other Folders
-- `archive/` — Earlier chronological experiments (`01`–`08`: legacy UNSW-NB15 baseline, TTL audit, early UWF & pure-window drafts). Numbers there use the old labels and splits.
-- `colab_scripts/` — Google Colab scripts that convert raw `CIC-IDS2017` (52 GB), `UNSW-NB15` (20 GB) and `AIT-LDSv2` (7.1 GB) PCAPs into Zeek Parquet files.
-- `samar/` — Teammate dataset inspection notebooks.
+## Other folders
+- `archive/`: earlier experiments (`01`–`10`), including the previous dataset-comparison (`09`) and hybrid-model (`10`) notebooks.
+- `colab_scripts/`: Google Colab scripts that turn raw captures and official files into the Parquet files above.
+- `samar/`: teammate dataset inspection notebooks.

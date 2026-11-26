@@ -195,6 +195,17 @@ def load_unsw_zeek(data_dir: Path | None = None, with_features: bool = True) -> 
     return add_zeek_hybrid_features(df, group_col="source") if with_features else df
 
 
+def load_unsw_official_zeek(data_dir: Path | None = None, with_features: bool = True) -> pd.DataFrame:
+    """Load the creators' own UNSW-NB15 Zeek conn.logs, labelled from the official ground-truth table.
+
+    Built by notebooks/colab_scripts/colab_unsw_official_zeek.py from the official UNSW download.
+    """
+    base = data_dir or (DATASETS_DIR / "unsw_official")
+    df = pd.read_parquet(base / "conn.parquet")
+    df["source"] = "unsw_official"
+    return add_zeek_hybrid_features(df, group_col="source") if with_features else df
+
+
 def load_ait_zeek(data_dir: Path | None = None, with_features: bool = True) -> pd.DataFrame:
     """Load AIT-LDSv2 russellmitchell Zeek-converted Parquet (deduped, labeled by attacker IPs).
 
@@ -210,6 +221,22 @@ def load_ait_zeek(data_dir: Path | None = None, with_features: bool = True) -> p
     is_exfil = df["dst_ip"].isin(AIT_ATTACKER_IPS) & (pd.to_numeric(df["dst_port"], errors="coerce") == 53)
     df["attack_type"] = np.select([is_exfil, is_attack], ["AIT-dnsteal exfil", "AIT-red team"], "BENIGN")
     df["source"] = "ait_russellmitchell"
+    return add_zeek_hybrid_features(df, group_col="source") if with_features else df
+
+
+def load_ait_lds_zeek(
+    scenarios: list[str] | None = None, data_dir: Path | None = None, with_features: bool = True
+) -> pd.DataFrame:
+    """Load the labelled AIT-LDSv2 Zeek conn logs (8 enterprise networks, company capture points only).
+
+    Built by notebooks/colab_scripts/ait_lds_label.py: one row per connection after merging copies seen by
+    several probes; attacks matched to the attacker's own capture, exfiltration to the firewall's DNS log.
+    Host-context features are computed per scenario (`source`).
+    """
+    base = data_dir or (DATASETS_DIR / "ait_lds_zeek" / "labelled")
+    files = [base / f"{s}.parquet" for s in scenarios] if scenarios else sorted(base.glob("*.parquet"))
+    df = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
+    df["source"] = "ait_" + df["scenario"]
     return add_zeek_hybrid_features(df, group_col="source") if with_features else df
 
 
